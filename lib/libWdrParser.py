@@ -15,18 +15,15 @@ def parseShows(letter):
 		lis = re.compile('<li >(.+?)</li>', re.DOTALL).findall(ul)
 		for li in lis:
 			dict = {}
-			strong = re.compile('<strong>(.+?)</strong>', re.DOTALL).findall(li)[0]
-			if strong == 'mehr':
-				dict['url'] = base + re.compile('href="(.+?)"', re.DOTALL).findall(li)[0]
-				dict['name'] = re.compile('<span>(.+?)</span>', re.DOTALL).findall(li)[0]
-				dict['thumb'] = base + re.compile('<img.+?src="(.+?)"', re.DOTALL).findall(li)[0]
-				
-				dict['type'] = 'dir'
-				dict['mode'] = 'libWdrListVideos'
-				
-				list.append(dict)
-			else:#TODO!
-				pass
+
+			dict['url'] = base + re.compile('href="(.+?)"', re.DOTALL).findall(li)[0]
+			dict['name'] = re.compile('<span>(.+?)</span>', re.DOTALL).findall(li)[0]
+			dict['thumb'] = base + re.compile('<img.+?src="(.+?)"', re.DOTALL).findall(li)[0].replace('~_v-ARDKleinerTeaser.jpg','~_v-original.jpg')
+			
+			dict['type'] = 'dir'
+			dict['mode'] = 'libWdrListVideos'
+			
+			list.append(dict)
 		
 	return list
 	
@@ -40,7 +37,7 @@ def parseVideos(url):#TODO remove "mehr"
 		#xbmc.log(href2)
 		if '<div class="media mediaA video">' in stuff:
 			dict = {}
-			#xbmc.log(stuff)
+			xbmc.log(stuff)
 			dict['url'] = base + re.compile('href="(.+?)"', re.DOTALL).findall(href2)[0]
 			if '<h4' in stuff:
 				dict['name'] = re.compile('<h4.+?>.+?<span class="hidden">Video:</span>(.+?)<', re.DOTALL).findall(stuff)[0].strip()
@@ -88,16 +85,25 @@ def parseDate(date,channel='BR'):
 	
 
 def parseVideo(url):
-	#xbmc.log(url)
+	xbmc.log(url)
 	response = _utils.getUrl(url)
 	#'mediaObj': { 'url': 'http://deviceids-medp.wdr.de/ondemand/111/1114678.js'
 	#xbmc.log(response)
 	url2 = re.compile("'mediaObj': { 'url': '(.+?)'", re.DOTALL).findall(response)[0]
+	xbmc.log(url2)
 	response = _utils.getUrl(url2)
 	videos = re.compile('"videoURL":"(.+?)"', re.DOTALL).findall(response)
+	vid = False
+	bakvid = False
 	for video in videos:
 		if 'm3u8' in video:
 			vid = video
+		elif video.endswith('.f4m'):
+			bakvid = video.replace('manifest.f4m','master.m3u8').replace('adaptiv.wdr.de/z/','adaptiv.wdr.de/i/')
+		elif video.endswith('.mp4') and not bakvid:
+			bakvid = video
+	if not vid:
+		vid = bakvid
 	return vid#todo subtitles
 def startTimeToInt(s):
 	HH,MM,SS = s.split(":")
