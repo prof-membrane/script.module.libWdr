@@ -18,8 +18,12 @@ def parseShows(letter):
 
 			dict['url'] = base + re.compile('href="(.+?)"', re.DOTALL).findall(li)[0]
 			dict['name'] = re.compile('<span>(.+?)</span>', re.DOTALL).findall(li)[0]
-			dict['thumb'] = base + re.compile('<img.+?src="(.+?)"', re.DOTALL).findall(li)[0].replace('~_v-ARDKleinerTeaser.jpg','~_v-original.jpg')
-			
+			#dict['thumb'] = base + re.compile('<img.+?src="(.+?)"', re.DOTALL).findall(li)[0].replace('~_v-ARDKleinerTeaser.jpg','~_v-original.jpg')
+			thumb = re.compile('<img.+?src="(.+?)"', re.DOTALL).findall(li)[0].replace('~_v-ARDKleinerTeaser.jpg','~_v-original.jpg').replace('http//www','http://www')
+			if thumb.startswith('http'):
+				dict['thumb'] = thumb
+			else:
+				dict['thumb'] = base + thumb
 			dict['type'] = 'dir'
 			dict['mode'] = 'libWdrListVideos'
 			
@@ -84,27 +88,39 @@ def parseDate(date,channel='BR'):
 """		
 	
 
-def parseVideo(url):
-	xbmc.log(url)
+def parseVideo(url,signLang=False):
 	response = _utils.getUrl(url)
 	#'mediaObj': { 'url': 'http://deviceids-medp.wdr.de/ondemand/111/1114678.js'
 	#xbmc.log(response)
 	url2 = re.compile("'mediaObj': { 'url': '(.+?)'", re.DOTALL).findall(response)[0]
 	xbmc.log(url2)
 	response = _utils.getUrl(url2)
-	videos = re.compile('"videoURL":"(.+?)"', re.DOTALL).findall(response)
-	vid = False
-	bakvid = False
-	for video in videos:
-		if 'm3u8' in video:
-			vid = video
-		elif video.endswith('.f4m'):
-			bakvid = video.replace('manifest.f4m','master.m3u8').replace('adaptiv.wdr.de/z/','adaptiv.wdr.de/i/')
-		elif video.endswith('.mp4') and not bakvid:
-			bakvid = video
-	if not vid:
-		vid = bakvid
-	return vid#todo subtitles
+	import json
+	xbmc.log(response[38:-2])
+	j = json.loads(response[38:-2])
+	
+	videos = []
+	subUrl = False
+	for type in j['mediaResource']:
+		xbmc.log(str(j['mediaResource'][type]))
+		if type == 'dflt' or type == 'alt':
+			if signLang and 'slVideoURL' in j['mediaResource'][type]:
+				videos.append(j['mediaResource'][type]['slVideoURL'])
+			else:
+				videos.append(j['mediaResource'][type]['videoURL'])
+		elif type == 'captionURL':
+			subUrl = j['mediaResource']['captionURL']
+	video = False
+	for vid in videos:
+		if vid.endswith('.m3u8'):
+			video = vid
+		elif vid.endswith('.f4m') and (not video or video.endswith('.mp4')):
+			video = vid.replace('manifest.f4m','master.m3u8').replace('adaptiv.wdr.de/z/','adaptiv.wdr.de/i/')
+		elif vid.endswith('.mp4') and not video:
+			video = vid
+			
+	return video,subUrl
+	
 def startTimeToInt(s):
 	HH,MM,SS = s.split(":")
 	return int(HH) * 60 + int(MM)

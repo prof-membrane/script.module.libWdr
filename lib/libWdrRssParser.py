@@ -39,7 +39,7 @@ def parseFeed(feed,type=False):
 			s = d.split('T')
 			dict['aired'] = s[0]
 			t = s[1].replace('Z','').split(':')
-			dict['airedtime'] = str(int(t[0])+1) + ':' + t[1]
+			dict['airedtime'] = str(int(t[0])+2) + ':' + t[1]
 			dict['sort'] = s[1].replace('Z','').replace(':','')
 			if len(dict['airedtime']) == 4:
 				dict['airedtime'] = '0' + dict['airedtime']

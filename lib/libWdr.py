@@ -32,6 +32,7 @@ def libWdrListMain():
 	libMediathek.addEntry({'name':translation(31033), 'mode':'libWdrListDate'})
 	#libMediathek.addEntry({'name':'Videos in Gebärdensprache', 'mode':'libWdrListFeed', 'url':'http://www1.wdr.de/mediathek/video/sendungen/videos-dgs-100~_format-mp111_type-rss.feed'})
 	#libMediathek.addEntry({'name':'Videos mit Untertiteln', 'mode':'libWdrListFeed', 'url':'http://www1.wdr.de/mediathek/video/sendungen/videos-untertitel-100~_format-mp111_type-rss.feed'})
+	libMediathek.addEntry({'name':translation(31039), 'mode':'libWdrSearch'})
 	
 	
 	
@@ -56,19 +57,65 @@ def libWdrListDate():
 def libWdrListDateVideos():
 	from datetime import date, timedelta
 	day = date.today() - timedelta(int(params['datum']))
-	ddmmyy = day.strftime('%d%m%Y')
-	xbmc.log(params['datum'])
-	xbmc.log(ddmmyy)
-	#url = 'http://www1.wdr.de/mediathek/video/sendungverpasst/sendung-verpasst-100~_tag-19092016_format-mp111_type-rss.feed'
-	url = 'http://www1.wdr.de/mediathek/video/sendungverpasst/sendung-verpasst-100~_tag-'+ddmmyy+'_format-mp111_type-rss.feed'
+	ddmmyyyy = day.strftime('%d%m%Y')
+	yyyymmdd = day.strftime('%Y-%m-%d')
+	url = 'http://www1.wdr.de/mediathek/video/sendungverpasst/sendung-verpasst-100~_tag-'+ddmmyyyy+'_format-mp111_type-rss.feed'
+	urlEpg = 'http://www.wdr.de/programmvorschau/ajax/alle/uebersicht/'+yyyymmdd+'/'
 	xbmc.log(url)
-	l = libWdrRssParser.parseFeed(url,'date')
-	from operator import itemgetter
-	l = sorted(l, key=itemgetter('sort')) 
-	libMediathek.addEntries(l)
-	
+	xbmc.log(urlEpg)
+	import libWdrJsonParser
+	import time
+	#listEpg = libWdrJsonParser.parseEpg(urlEpg)
+	listVideos = libWdrRssParser.parseFeed(url,'date')
+	libMediathek.addEntries(listVideos)
+	"""
+	listFinal = []
+	epochmax = int(time.mktime(time.strptime(ddmmyyyy, "%d%m%Y"))) + 86400
+	xbmc.log(str(epochmax))
+	for item in listEpg:
+		if 'url' in item and int(item['start']) <= epochmax:
+		
+			xbmc.log('###########')
+			xbmc.log(item['url'])
+			xbmc.log(str(item['start']))
+			xbmc.log(str(epochmax))
+			xbmc.log('###')
+			
+			for vid in listVideos:
+				xbmc.log(vid['url'])
+				if item['url'] == vid['url']:
+					dict = vid
+					dict['duration'] = item['duration']
+					listFinal.append(dict)
+					break
+			else:
+				dict = {}
+				xbmc.log(time.strftime('%H:%M', time.localtime(int(item['start']))))
+				dict['name'] = item['name']
+				dict['url'] = item['url']
+				dict['duration'] = item['duration']
+				dict['aired'] = yyyymmdd
+				dict['airedtime'] = time.strftime('%H:%M', time.localtime(int(item['start'])))
+				dict['type'] = 'date'
+				dict['mode'] = 'libWdrPlay'
+				listFinal.append(dict)
+				
+	#from operator import itemgetter
+	#l = sorted(l, key=itemgetter('sort')) 
+	libMediathek.addEntries(listFinal)
+	"""
+def libWdrSearch():
+	import libWdrHtmlParser
+	keyboard = xbmc.Keyboard('', translation(31039))
+	keyboard.doModal()
+	if keyboard.isConfirmed() and keyboard.getText():
+		search_string =  urllib.quote_plus(keyboard.getText())
+		libMediathek.addEntries(libWdrHtmlParser.parse("http://www1.wdr.de/mediathek/video/suche/avsuche100~suche_parentId-videosuche100.html?pageNumber=1&sort=date&q="+search_string))
+def libWdrListSearch():
+	import libWdrHtmlParser
+	libMediathek.addEntries(libWdrHtmlParser.parse(params['url']))
 def libWdrPlay():
-	url = libWdrParser.parseVideo(params['url'])
+	url,subUrl = libWdrParser.parseVideo(params['url'])
 	xbmc.log(url)
 	listitem = xbmcgui.ListItem(path=url)
 	xbmcplugin.setResolvedUrl(pluginhandle, True, listitem)
@@ -82,6 +129,8 @@ def list():
 	'libWdrListFeed': libWdrListFeed,
 	'libWdrListDate': libWdrListDate,
 	'libWdrListDateVideos': libWdrListDateVideos,
+	'libWdrSearch': libWdrSearch,
+	'libWdrListSearch': libWdrListSearch,
 	'libWdrPlay': libWdrPlay
 	}
 	global params
